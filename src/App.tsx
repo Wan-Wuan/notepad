@@ -102,18 +102,14 @@ function App() {
   const [isDragging, setIsDragging] = useState<'sidebar' | 'outline' | null>(null)
   const dragStartX = useRef(0)
   const dragStartWidth = useRef(0)
-  const initialized = useRef(false)
 
   // 保存分类到本地存储
   useEffect(() => {
     localStorage.setItem('categories', JSON.stringify(categories))
   }, [categories])
 
-  // 加载数据 - 只在组件挂载时执行一次
+  // 加载数据
   useEffect(() => {
-    if (initialized.current) return
-    initialized.current = true
-    
     const loadData = async () => {
       try {
         if (window.electronAPI) {

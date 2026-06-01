@@ -91,7 +91,8 @@ ipcMain.handle('get-notes', async () => {
     const notes = []
 
     for (const file of files) {
-      if (file.endsWith('.json')) {
+      // 只加载数字ID命名的笔记文件，排除 folders.json 和 settings.json
+      if (file.endsWith('.json') && /^\d+\.json$/.test(file)) {
         const content = await readFile(join(storagePath, file), 'utf-8')
         notes.push(JSON.parse(content))
       }
