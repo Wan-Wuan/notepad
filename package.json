@@ -1,6 +1,6 @@
 {
   "name": "notepad",
-  "version": "1.0.0",
+  "version": "1.5.0",
   "description": "个人本地笔记软件",
   "main": "out/main/index.js",
   "scripts": {
