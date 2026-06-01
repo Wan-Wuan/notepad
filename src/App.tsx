@@ -4,6 +4,7 @@ interface Note {
   id: string
   title: string
   content: string
+  category: string
   createdAt: string
   updatedAt: string
 }
@@ -14,6 +15,20 @@ interface HeadingItem {
   text: string
   children?: HeadingItem[]
 }
+
+interface Category {
+  id: string
+  name: string
+  color: string
+}
+
+const defaultCategories: Category[] = [
+  { id: 'default', name: '默认', color: '#6b7280' },
+  { id: 'work', name: '工作', color: '#3b82f6' },
+  { id: 'study', name: '学习', color: '#10b981' },
+  { id: 'life', name: '生活', color: '#f59e0b' },
+  { id: 'idea', name: '想法', color: '#8b5cf6' }
+]
 
 const Icons = {
   Plus: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
@@ -35,25 +50,35 @@ const Icons = {
   Copy: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>,
   Check: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
   AlertTriangle: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
-  FoldVertical: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>
+  FoldVertical: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>,
+  Folder: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>,
+  Eye: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
+  EyeOff: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>,
+  Tag: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
 }
 
 function App() {
   const [notes, setNotes] = useState<Note[]>([])
   const [currentNote, setCurrentNote] = useState<Note | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [categories, setCategories] = useState<Category[]>(defaultCategories)
   const editorRef = useRef<HTMLDivElement>(null)
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set())
   const [draggedNote, setDraggedNote] = useState<string | null>(null)
   const [dragOverNote, setDragOverNote] = useState<string | null>(null)
   const [dragOverPosition, setDragOverPosition] = useState<'before' | 'after' | null>(null)
   const [headings, setHeadings] = useState<HeadingItem[]>([])
-  const [showOutline, setShowOutline] = useState(true)
+  const [showOutline, setShowOutline] = useState(() => {
+    const saved = localStorage.getItem('showOutline')
+    return saved !== null ? saved === 'true' : true
+  })
   const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null)
   const [collapsedHeadings, setCollapsedHeadings] = useState<Set<string>>(new Set())
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; noteId: string; noteTitle: string }>({ show: false, noteId: '', noteTitle: '' })
   const [copySuccess, setCopySuccess] = useState(false)
   const [wordCount, setWordCount] = useState({ characters: 0, words: 0 })
+  const [isLoading, setIsLoading] = useState(true)
   
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem('sidebarWidth')
@@ -72,18 +97,35 @@ function App() {
       try {
         if (window.electronAPI) {
           const loadedNotes = await window.electronAPI.getNotes()
-          setNotes(loadedNotes)
-          if (loadedNotes.length > 0) setCurrentNote(loadedNotes[0])
+          // 为旧笔记添加默认分类
+          const notesWithCategory = loadedNotes.map((note: Note) => ({
+            ...note,
+            category: note.category || 'default'
+          }))
+          setNotes(notesWithCategory)
+          if (notesWithCategory.length > 0 && !currentNote) {
+            setCurrentNote(notesWithCategory[0])
+          }
         }
-      } catch (error) { console.error('加载数据失败:', error) }
+      } catch (error) { 
+        console.error('加载数据失败:', error) 
+      } finally {
+        setIsLoading(false)
+      }
     }
     loadData()
+  }, [])
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'n') { e.preventDefault(); handleCreateNote() }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') { 
+        e.preventDefault()
+        handleCreateNote() 
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [selectedCategory])
 
   useEffect(() => {
     if (editorRef.current && currentNote) {
@@ -95,6 +137,7 @@ function App() {
 
   useEffect(() => { localStorage.setItem('sidebarWidth', sidebarWidth.toString()) }, [sidebarWidth])
   useEffect(() => { localStorage.setItem('outlineWidth', outlineWidth.toString()) }, [outlineWidth])
+  useEffect(() => { localStorage.setItem('showOutline', showOutline.toString()) }, [showOutline])
 
   useEffect(() => {
     if (!isDragging) return
@@ -116,30 +159,20 @@ function App() {
     dragStartWidth.current = panel === 'sidebar' ? sidebarWidth : outlineWidth
   }
 
-  // 构建大纲树结构
   const buildHeadingTree = (flatHeadings: { level: number; text: string }[]): HeadingItem[] => {
     const root: HeadingItem[] = []
     const stack: { item: HeadingItem; level: number }[] = []
-    
     flatHeadings.forEach((h, index) => {
       const item: HeadingItem = { id: `heading-${index}`, level: h.level, text: h.text, children: [] }
-      
-      // 弹出栈中级别 >= 当前级别的项
-      while (stack.length > 0 && stack[stack.length - 1].level >= h.level) {
-        stack.pop()
-      }
-      
-      if (stack.length === 0) {
-        root.push(item)
-      } else {
+      while (stack.length > 0 && stack[stack.length - 1].level >= h.level) stack.pop()
+      if (stack.length === 0) root.push(item)
+      else {
         const parent = stack[stack.length - 1].item
         if (!parent.children) parent.children = []
         parent.children.push(item)
       }
-      
       stack.push({ item, level: h.level })
     })
-    
     return root
   }
 
@@ -176,7 +209,6 @@ function App() {
     }
   }
 
-  // 切换标题折叠状态
   const toggleCollapse = (headingId: string) => {
     setCollapsedHeadings(prev => {
       const next = new Set(prev)
@@ -186,7 +218,6 @@ function App() {
     })
   }
 
-  // 全部折叠/展开
   const toggleAllCollapse = () => {
     if (collapsedHeadings.size > 0) {
       setCollapsedHeadings(new Set())
@@ -205,50 +236,23 @@ function App() {
     }
   }
 
-  // 渲染大纲项
-  const renderOutlineItem = (item: HeadingItem, depth: number = 0) => {
-    const hasChildren = item.children && item.children.length > 0
-    const isCollapsed = collapsedHeadings.has(item.id)
-    
-    return (
-      <div key={item.id}>
-        <div
-          onClick={() => scrollToHeading(item.text)}
-          style={{
-            ...styles.outlineItem,
-            paddingLeft: `${depth * 16 + 12}px`,
-            ...(activeHeadingId === item.text ? styles.outlineItemActive : {})
-          }}
-        >
-          {hasChildren ? (
-            <div
-              onClick={(e) => { e.stopPropagation(); toggleCollapse(item.id) }}
-              style={styles.collapseBtn}
-            >
-              {isCollapsed ? <Icons.ChevronRight /> : <Icons.ChevronDown />}
-            </div>
-          ) : (
-            <div style={styles.collapsePlaceholder} />
-          )}
-          <span style={styles.outlineText}>{item.text}</span>
-          {hasChildren && (
-            <span style={styles.childCount}>{item.children!.length}</span>
-          )}
-        </div>
-        {hasChildren && !isCollapsed && (
-          <div>
-            {item.children!.map(child => renderOutlineItem(child, depth + 1))}
-          </div>
-        )}
-      </div>
-    )
+  const saveNote = async (note: Note) => {
+    if (window.electronAPI) await window.electronAPI.saveNote(note)
   }
 
-  const saveNote = async (note: Note) => { if (window.electronAPI) await window.electronAPI.saveNote(note) }
-
   const handleCreateNote = async () => {
-    const newNote: Note = { id: Date.now().toString(), title: '', content: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-    setNotes([newNote, ...notes]); setCurrentNote(newNote); await saveNote(newNote)
+    const newNote: Note = { 
+      id: Date.now().toString(), 
+      title: '', 
+      content: '', 
+      category: selectedCategory === 'all' ? 'default' : selectedCategory,
+      createdAt: new Date().toISOString(), 
+      updatedAt: new Date().toISOString() 
+    }
+    const updatedNotes = [newNote, ...notes]
+    setNotes(updatedNotes)
+    setCurrentNote(newNote)
+    await saveNote(newNote)
   }
 
   const showDeleteConfirm = (noteId: string, noteTitle: string) => {
@@ -257,8 +261,11 @@ function App() {
 
   const confirmDeleteNote = async () => {
     const { noteId } = deleteConfirm
-    setNotes(notes.filter(n => n.id !== noteId))
-    if (currentNote?.id === noteId) setCurrentNote(notes.find(n => n.id !== noteId) || null)
+    const updatedNotes = notes.filter(n => n.id !== noteId)
+    setNotes(updatedNotes)
+    if (currentNote?.id === noteId) {
+      setCurrentNote(updatedNotes.length > 0 ? updatedNotes[0] : null)
+    }
     if (window.electronAPI) await window.electronAPI.deleteNote(noteId)
     setDeleteConfirm({ show: false, noteId: '', noteTitle: '' })
   }
@@ -266,52 +273,94 @@ function App() {
   const handleTitleChange = async (title: string) => {
     if (!currentNote) return
     const updated = { ...currentNote, title, updatedAt: new Date().toISOString() }
-    setCurrentNote(updated); setNotes(notes.map(n => n.id === updated.id ? updated : n)); await saveNote(updated)
+    setCurrentNote(updated)
+    setNotes(notes.map(n => n.id === updated.id ? updated : n))
+    await saveNote(updated)
+  }
+
+  const handleCategoryChange = async (category: string) => {
+    if (!currentNote) return
+    const updated = { ...currentNote, category, updatedAt: new Date().toISOString() }
+    setCurrentNote(updated)
+    setNotes(notes.map(n => n.id === updated.id ? updated : n))
+    await saveNote(updated)
   }
 
   const handleContentChange = async () => {
     if (!currentNote || !editorRef.current) return
     const content = editorRef.current.innerHTML
     const updated = { ...currentNote, content, updatedAt: new Date().toISOString() }
-    setCurrentNote(updated); setNotes(notes.map(n => n.id === updated.id ? updated : n))
-    await saveNote(updated); extractHeadings(content); updateWordCount(content)
+    setCurrentNote(updated)
+    setNotes(notes.map(n => n.id === updated.id ? updated : n))
+    await saveNote(updated)
+    extractHeadings(content)
+    updateWordCount(content)
   }
 
   const exportAsMarkdown = () => {
     if (!currentNote) return
-    const div = document.createElement('div'); div.innerHTML = currentNote.content
+    const div = document.createElement('div')
+    div.innerHTML = currentNote.content
     let markdown = div.textContent || div.innerText || ''
     if (currentNote.title) markdown = `# ${currentNote.title}\n\n${markdown}`
     const blob = new Blob([markdown], { type: 'text/markdown' })
-    const url = URL.createObjectURL(blob); const a = document.createElement('a')
-    a.href = url; a.download = `${currentNote.title || '笔记'}.md`; a.click(); URL.revokeObjectURL(url)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${currentNote.title || '笔记'}.md`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const copyContent = async () => {
     if (!currentNote) return
-    const div = document.createElement('div'); div.innerHTML = currentNote.content
+    const div = document.createElement('div')
+    div.innerHTML = currentNote.content
     const text = div.textContent || div.innerText || ''
-    try { await navigator.clipboard.writeText(text); setCopySuccess(true); setTimeout(() => setCopySuccess(false), 2000) } catch (err) { console.error('复制失败:', err) }
+    try { 
+      await navigator.clipboard.writeText(text)
+      setCopySuccess(true)
+      setTimeout(() => setCopySuccess(false), 2000) 
+    } catch (err) { console.error('复制失败:', err) }
   }
 
   const handleDragStart = (e: React.DragEvent, noteId: string) => {
-    setDraggedNote(noteId); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', noteId)
+    setDraggedNote(noteId)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', noteId)
     setTimeout(() => { (e.target as HTMLElement).style.opacity = '0.5' }, 0)
   }
-  const handleDragEnd = (e: React.DragEvent) => { (e.target as HTMLElement).style.opacity = '1'; setDraggedNote(null); setDragOverNote(null); setDragOverPosition(null) }
-  const handleDragOver = (e: React.DragEvent, noteId: string) => {
-    e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (noteId === draggedNote) return
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    setDragOverNote(noteId); setDragOverPosition(e.clientY - rect.top < rect.height / 2 ? 'before' : 'after')
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    (e.target as HTMLElement).style.opacity = '1'
+    setDraggedNote(null)
+    setDragOverNote(null)
+    setDragOverPosition(null)
   }
+
+  const handleDragOver = (e: React.DragEvent, noteId: string) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (noteId === draggedNote) return
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    setDragOverNote(noteId)
+    setDragOverPosition(e.clientY - rect.top < rect.height / 2 ? 'before' : 'after')
+  }
+
   const handleDrop = async (e: React.DragEvent, targetNoteId: string) => {
     e.preventDefault()
-    if (!draggedNote || draggedNote === targetNoteId) { setDraggedNote(null); setDragOverNote(null); setDragOverPosition(null); return }
-    const notesCopy = [...notes]; const di = notesCopy.findIndex(n => n.id === draggedNote); const ti = notesCopy.findIndex(n => n.id === targetNoteId)
+    if (!draggedNote || draggedNote === targetNoteId) {
+      setDraggedNote(null); setDragOverNote(null); setDragOverPosition(null); return
+    }
+    const notesCopy = [...notes]
+    const di = notesCopy.findIndex(n => n.id === draggedNote)
+    const ti = notesCopy.findIndex(n => n.id === targetNoteId)
     if (di === -1 || ti === -1) return
     const [removed] = notesCopy.splice(di, 1)
     const insertIndex = dragOverPosition === 'after' ? (di < ti ? ti : ti + 1) : (di < ti ? ti - 1 : ti)
-    notesCopy.splice(insertIndex, 0, removed); setNotes(notesCopy); setDraggedNote(null); setDragOverNote(null); setDragOverPosition(null)
+    notesCopy.splice(insertIndex, 0, removed)
+    setNotes(notesCopy)
+    setDraggedNote(null); setDragOverNote(null); setDragOverPosition(null)
     if (window.electronAPI) for (const note of notesCopy) await window.electronAPI.saveNote(note)
   }
 
@@ -320,6 +369,27 @@ function App() {
     if (draggedNote === noteId) return { ...base, opacity: 0.5 }
     if (dragOverNote === noteId) return { ...base, borderTop: dragOverPosition === 'before' ? '2px solid #3b82f6' : undefined, borderBottom: dragOverPosition === 'after' ? '2px solid #3b82f6' : undefined }
     return base
+  }
+
+  const getCategoryColor = (categoryId: string) => {
+    const cat = categories.find(c => c.id === categoryId)
+    return cat ? cat.color : '#6b7280'
+  }
+
+  const getCategoryName = (categoryId: string) => {
+    const cat = categories.find(c => c.id === categoryId)
+    return cat ? cat.name : '默认'
+  }
+
+  const filteredNotes = notes.filter(n => {
+    const matchSearch = !searchQuery || n.title.toLowerCase().includes(searchQuery.toLowerCase()) || n.content.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchCategory = selectedCategory === 'all' || n.category === selectedCategory
+    return matchSearch && matchCategory
+  })
+
+  const getCategoryCount = (categoryId: string) => {
+    if (categoryId === 'all') return notes.length
+    return notes.filter(n => n.category === categoryId).length
   }
 
   const execCommand = (c: string, v?: string) => { document.execCommand(c, false, v); editorRef.current?.focus(); updateActiveFormats() }
@@ -337,29 +407,94 @@ function App() {
 
   const formatDate = (d: string) => {
     const diff = Date.now() - new Date(d).getTime()
-    if (diff < 60000) return '刚刚'; if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`; if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`; if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`
+    if (diff < 60000) return '刚刚'
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`
+    if (diff < 604800000) return `${Math.floor(diff / 86400000)}天前`
     return new Date(d).toLocaleDateString('zh-CN')
   }
 
-  const filteredNotes = notes.filter(n => !searchQuery || n.title.toLowerCase().includes(searchQuery.toLowerCase()) || n.content.toLowerCase().includes(searchQuery.toLowerCase()))
-  const getPreview = (c: string) => { if (!c) return '空白笔记'; const d = document.createElement('div'); d.innerHTML = c; const t = d.textContent || ''; return t.length > 60 ? t.substring(0, 60) + '...' : t }
+  const getPreview = (c: string) => { 
+    if (!c) return '空白笔记'
+    const d = document.createElement('div')
+    d.innerHTML = c
+    const t = d.textContent || ''
+    return t.length > 60 ? t.substring(0, 60) + '...' : t 
+  }
+
+  const renderOutlineItem = (item: HeadingItem, depth: number = 0) => {
+    const hasChildren = item.children && item.children.length > 0
+    const isCollapsed = collapsedHeadings.has(item.id)
+    return (
+      <div key={item.id}>
+        <div onClick={() => scrollToHeading(item.text)} style={{ ...styles.outlineItem, paddingLeft: `${depth * 16 + 12}px`, ...(activeHeadingId === item.text ? styles.outlineItemActive : {}) }}>
+          {hasChildren ? (
+            <div onClick={(e) => { e.stopPropagation(); toggleCollapse(item.id) }} style={styles.collapseBtn}>
+              {isCollapsed ? <Icons.ChevronRight /> : <Icons.ChevronDown />}
+            </div>
+          ) : <div style={styles.collapsePlaceholder} />}
+          <span style={styles.outlineText}>{item.text}</span>
+          {hasChildren && <span style={styles.childCount}>{item.children!.length}</span>}
+        </div>
+        {hasChildren && !isCollapsed && <div>{item.children!.map(child => renderOutlineItem(child, depth + 1))}</div>}
+      </div>
+    )
+  }
 
   const renderResizeHandle = (panel: 'sidebar' | 'outline') => (
     <div style={{ ...styles.resizeHandle, ...(isDragging === panel ? styles.resizeHandleActive : {}) }} onMouseDown={(e) => handleResizeStart(e, panel)} />
   )
+
+  if (isLoading) {
+    return <div style={styles.loadingContainer}><p>加载中...</p></div>
+  }
 
   return (
     <div style={styles.container}>
       <aside style={{ ...styles.sidebar, width: `${sidebarWidth}px` }}>
         <div style={styles.sidebarHeader}><h1 style={styles.appTitle}>笔记软件</h1></div>
         <div style={styles.searchWrapper}><div style={styles.searchBox}><Icons.Search /><input type="text" placeholder="搜索笔记..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={styles.searchInput} /></div></div>
+        
+        {/* 分类列表 */}
+        <div style={styles.categorySection}>
+          <div style={styles.categoryTitle}><Icons.Folder /><span>分类</span></div>
+          <div 
+            style={{ ...styles.categoryItem, ...(selectedCategory === 'all' ? styles.categoryItemActive : {}) }}
+            onClick={() => setSelectedCategory('all')}
+          >
+            <span>全部笔记</span>
+            <span style={styles.categoryCount}>{getCategoryCount('all')}</span>
+          </div>
+          {categories.map(cat => (
+            <div 
+              key={cat.id}
+              style={{ ...styles.categoryItem, ...(selectedCategory === cat.id ? styles.categoryItemActive : {}) }}
+              onClick={() => setSelectedCategory(cat.id)}
+            >
+              <div style={styles.categoryDot}>
+                <div style={{ ...styles.dot, backgroundColor: cat.color }} />
+                <span>{cat.name}</span>
+              </div>
+              <span style={styles.categoryCount}>{getCategoryCount(cat.id)}</span>
+            </div>
+          ))}
+        </div>
+
         <div style={styles.newNoteWrapper}><button onClick={handleCreateNote} style={styles.newNoteBtn}><Icons.Plus /><span>新建笔记</span></button></div>
+        
         <div style={styles.noteList}>
-          {filteredNotes.length === 0 ? <div style={styles.emptyState}><p style={styles.emptyText}>暂无笔记</p></div> : filteredNotes.map(note => (
+          {filteredNotes.length === 0 ? (
+            <div style={styles.emptyState}><p style={styles.emptyText}>暂无笔记</p></div>
+          ) : filteredNotes.map(note => (
             <div key={note.id} draggable onDragStart={(e) => handleDragStart(e, note.id)} onDragEnd={handleDragEnd} onDragOver={(e) => handleDragOver(e, note.id)} onDragLeave={() => { setDragOverNote(null); setDragOverPosition(null) }} onDrop={(e) => handleDrop(e, note.id)} onClick={() => setCurrentNote(note)} style={getNoteItemStyle(note.id)}>
               <div style={styles.dragHandle}><Icons.GripVertical /></div>
               <div style={styles.noteItemContent}>
-                <div style={styles.noteItemTitle}>{note.title || '无标题笔记'}</div>
+                <div style={styles.noteItemHeader}>
+                  <div style={styles.noteItemTitle}>{note.title || '无标题笔记'}</div>
+                  <div style={{ ...styles.categoryBadge, backgroundColor: getCategoryColor(note.category) }}>
+                    {getCategoryName(note.category)}
+                  </div>
+                </div>
                 <div style={styles.noteItemPreview}>{getPreview(note.content)}</div>
                 <div style={styles.noteItemMeta}><Icons.Clock /><span>{formatDate(note.updatedAt)}</span></div>
               </div>
@@ -375,7 +510,20 @@ function App() {
       <main style={styles.editor}>
         {currentNote ? (
           <>
-            <div style={styles.editorHeader}><input type="text" value={currentNote.title} onChange={(e) => handleTitleChange(e.target.value)} placeholder="输入标题..." style={styles.titleInput} /></div>
+            <div style={styles.editorHeader}>
+              <input type="text" value={currentNote.title} onChange={(e) => handleTitleChange(e.target.value)} placeholder="输入标题..." style={styles.titleInput} />
+              <div style={styles.editorMeta}>
+                <select 
+                  value={currentNote.category} 
+                  onChange={(e) => handleCategoryChange(e.target.value)}
+                  style={styles.categorySelect}
+                >
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <div style={styles.toolbar}>
               <div style={styles.toolbarGroup}><button onClick={() => insertHeading(1)} style={styles.toolbarBtn}>H1</button><button onClick={() => insertHeading(2)} style={styles.toolbarBtn}>H2</button><button onClick={() => insertHeading(3)} style={styles.toolbarBtn}>H3</button></div>
               <div style={styles.toolbarDivider} />
@@ -388,7 +536,9 @@ function App() {
               <div style={styles.toolbarGroup}><button onClick={insertQuote} style={styles.toolbarBtn}><Icons.Quote /></button><button onClick={insertLink} style={styles.toolbarBtn}><Icons.Link /></button><button onClick={insertDivider} style={styles.toolbarBtn}>—</button></div>
               <div style={styles.toolbarDivider} />
               <div style={styles.toolbarGroup}>
-                <button onClick={() => setShowOutline(!showOutline)} style={{ ...styles.toolbarBtn, ...(showOutline ? styles.toolbarBtnActive : {}) }}><Icons.ListTree /></button>
+                <button onClick={() => setShowOutline(!showOutline)} style={{ ...styles.toolbarBtn, ...(showOutline ? styles.toolbarBtnActive : {}) }} title={showOutline ? '隐藏大纲' : '显示大纲'}>
+                  {showOutline ? <Icons.Eye /> : <Icons.EyeOff />}
+                </button>
                 <button onClick={exportAsMarkdown} style={styles.toolbarBtn}><Icons.Download /></button>
                 <button onClick={copyContent} style={{ ...styles.toolbarBtn, ...(copySuccess ? styles.toolbarBtnSuccess : {}) }}>{copySuccess ? <Icons.Check /> : <Icons.Copy />}</button>
               </div>
@@ -401,13 +551,9 @@ function App() {
                   <div style={{ ...styles.outlinePanel, width: `${outlineWidth}px` }}>
                     <div style={styles.outlineHeader}>
                       <Icons.ListTree /><span>大纲</span>
-                      <button onClick={toggleAllCollapse} style={styles.collapseAllBtn} title={collapsedHeadings.size > 0 ? '全部展开' : '全部折叠'}>
-                        <Icons.FoldVertical />
-                      </button>
+                      <button onClick={toggleAllCollapse} style={styles.collapseAllBtn} title={collapsedHeadings.size > 0 ? '全部展开' : '全部折叠'}><Icons.FoldVertical /></button>
                     </div>
-                    <div style={styles.outlineList}>
-                      {headings.map(item => renderOutlineItem(item, 0))}
-                    </div>
+                    <div style={styles.outlineList}>{headings.map(item => renderOutlineItem(item, 0))}</div>
                   </div>
                 </>
               )}
@@ -437,6 +583,7 @@ function App() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  loadingContainer: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#fff', fontFamily: 'sans-serif' },
   container: { display: 'flex', height: '100vh', backgroundColor: '#fff', fontFamily: 'sans-serif' },
   sidebar: { backgroundColor: '#f8fafc', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', flexShrink: 0 },
   sidebarHeader: { padding: '20px 20px 16px', borderBottom: '1px solid #e2e8f0' },
@@ -444,6 +591,13 @@ const styles: Record<string, React.CSSProperties> = {
   searchWrapper: { padding: '12px 16px 8px' },
   searchBox: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', color: '#94a3b8' },
   searchInput: { flex: 1, border: 'none', outline: 'none', fontSize: '13px', color: '#0f172a', backgroundColor: 'transparent' },
+  categorySection: { padding: '8px 16px', borderBottom: '1px solid #e2e8f0' },
+  categoryTitle: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' as const },
+  categoryItem: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', color: '#475569', marginBottom: '2px' },
+  categoryItemActive: { backgroundColor: '#e0e7ff', color: '#3b82f6' },
+  categoryDot: { display: 'flex', alignItems: 'center', gap: '8px' },
+  dot: { width: '8px', height: '8px', borderRadius: '50%' },
+  categoryCount: { fontSize: '11px', color: '#94a3b8', backgroundColor: '#f1f5f9', padding: '2px 6px', borderRadius: '10px' },
   newNoteWrapper: { padding: '8px 16px 12px' },
   newNoteBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', padding: '10px 16px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 500, cursor: 'pointer' },
   noteList: { flex: 1, overflowY: 'auto', padding: '0 8px' },
@@ -453,15 +607,19 @@ const styles: Record<string, React.CSSProperties> = {
   noteItemActive: { backgroundColor: '#eff6ff', borderLeft: '3px solid #3b82f6' },
   dragHandle: { display: 'flex', alignItems: 'center', padding: '4px 4px 4px 0', color: '#cbd5e1', cursor: 'grab' },
   noteItemContent: { flex: 1, minWidth: 0 },
-  noteItemTitle: { fontSize: '14px', fontWeight: 600, color: '#0f172a', marginBottom: '4px', whiteSpace: 'nowrap' as const, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const },
+  noteItemHeader: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' },
+  noteItemTitle: { fontSize: '14px', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap' as const, overflow: 'hidden' as const, textOverflow: 'ellipsis' as const, flex: 1 },
+  categoryBadge: { fontSize: '10px', color: '#fff', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 },
   noteItemPreview: { fontSize: '12px', color: '#64748b', marginBottom: '6px', lineHeight: '1.4', display: '-webkit-box' as const, WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' as const },
   noteItemMeta: { display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#94a3b8' },
   deleteBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.6, borderRadius: '4px', flexShrink: 0 },
   sidebarFooter: { padding: '12px 20px', borderTop: '1px solid #e2e8f0', fontSize: '12px', color: '#94a3b8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   dragHint: { fontSize: '11px', color: '#cbd5e1' },
   editor: { flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, backgroundColor: '#fff' },
-  editorHeader: { padding: '24px 32px 16px', borderBottom: '1px solid #f1f5f9' },
+  editorHeader: { padding: '24px 32px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '12px' },
   titleInput: { width: '100%', fontSize: '28px', fontWeight: 700, border: 'none', outline: 'none', color: '#0f172a', backgroundColor: 'transparent' },
+  editorMeta: { display: 'flex', alignItems: 'center', gap: '12px' },
+  categorySelect: { padding: '6px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '13px', color: '#475569', backgroundColor: '#fff', cursor: 'pointer' },
   toolbar: { display: 'flex', alignItems: 'center', gap: '4px', padding: '8px 32px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', flexWrap: 'wrap' as const },
   toolbarGroup: { display: 'flex', alignItems: 'center', gap: '2px' },
   toolbarDivider: { width: '1px', height: '24px', backgroundColor: '#e2e8f0', margin: '0 4px' },
