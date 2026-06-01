@@ -54,20 +54,27 @@ const Icons = {
   Folder: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>,
   Eye: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
   EyeOff: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>,
-  Tag: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+  Edit: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+  X: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
 }
+
+const colorOptions = ['#6b7280', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#ec4899', '#14b8a6', '#f97316', '#06b6d4']
 
 function App() {
   const [notes, setNotes] = useState<Note[]>([])
   const [currentNote, setCurrentNote] = useState<Note | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
-  const [categories, setCategories] = useState<Category[]>(defaultCategories)
+  const [categories, setCategories] = useState<Category[]>(() => {
+    const saved = localStorage.getItem('categories')
+    return saved ? JSON.parse(saved) : defaultCategories
+  })
   const editorRef = useRef<HTMLDivElement>(null)
   const [activeFormats, setActiveFormats] = useState<Set<string>>(new Set())
   const [draggedNote, setDraggedNote] = useState<string | null>(null)
   const [dragOverNote, setDragOverNote] = useState<string | null>(null)
   const [dragOverPosition, setDragOverPosition] = useState<'before' | 'after' | null>(null)
+  const [dragOverCategory, setDragOverCategory] = useState<string | null>(null)
   const [headings, setHeadings] = useState<HeadingItem[]>([])
   const [showOutline, setShowOutline] = useState(() => {
     const saved = localStorage.getItem('showOutline')
@@ -79,6 +86,10 @@ function App() {
   const [copySuccess, setCopySuccess] = useState(false)
   const [wordCount, setWordCount] = useState({ characters: 0, words: 0 })
   const [isLoading, setIsLoading] = useState(true)
+  const [showAddCategory, setShowAddCategory] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [editingCategory, setEditingCategory] = useState<string | null>(null)
+  const [editCategoryName, setEditCategoryName] = useState('')
   
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem('sidebarWidth')
@@ -91,21 +102,27 @@ function App() {
   const [isDragging, setIsDragging] = useState<'sidebar' | 'outline' | null>(null)
   const dragStartX = useRef(0)
   const dragStartWidth = useRef(0)
+  const initialized = useRef(false)
 
+  // 保存分类到本地存储
   useEffect(() => {
+    localStorage.setItem('categories', JSON.stringify(categories))
+  }, [categories])
+
+  // 加载数据 - 只在组件挂载时执行一次
+  useEffect(() => {
+    if (initialized.current) return
+    initialized.current = true
+    
     const loadData = async () => {
       try {
         if (window.electronAPI) {
           const loadedNotes = await window.electronAPI.getNotes()
-          // 为旧笔记添加默认分类
           const notesWithCategory = loadedNotes.map((note: Note) => ({
             ...note,
             category: note.category || 'default'
           }))
           setNotes(notesWithCategory)
-          if (notesWithCategory.length > 0 && !currentNote) {
-            setCurrentNote(notesWithCategory[0])
-          }
         }
       } catch (error) { 
         console.error('加载数据失败:', error) 
@@ -116,6 +133,7 @@ function App() {
     loadData()
   }, [])
 
+  // 快捷键
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'n') { 
@@ -127,9 +145,12 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [selectedCategory])
 
+  // 更新编辑器内容
   useEffect(() => {
     if (editorRef.current && currentNote) {
-      editorRef.current.innerHTML = currentNote.content
+      if (editorRef.current.innerHTML !== currentNote.content) {
+        editorRef.current.innerHTML = currentNote.content
+      }
       extractHeadings(currentNote.content)
       updateWordCount(currentNote.content)
     }
@@ -297,6 +318,70 @@ function App() {
     updateWordCount(content)
   }
 
+  // 添加分类
+  const handleAddCategory = () => {
+    if (newCategoryName.trim()) {
+      const newCategory: Category = {
+        id: Date.now().toString(),
+        name: newCategoryName.trim(),
+        color: colorOptions[categories.length % colorOptions.length]
+      }
+      setCategories([...categories, newCategory])
+      setNewCategoryName('')
+      setShowAddCategory(false)
+    }
+  }
+
+  // 删除分类
+  const handleDeleteCategory = (categoryId: string) => {
+    if (categoryId === 'default') return // 不能删除默认分类
+    setCategories(categories.filter(c => c.id !== categoryId))
+    // 将该分类下的笔记移到默认分类
+    setNotes(notes.map(n => n.category === categoryId ? { ...n, category: 'default' } : n))
+    if (selectedCategory === categoryId) setSelectedCategory('all')
+  }
+
+  // 重命名分类
+  const handleRenameCategory = (categoryId: string) => {
+    if (editCategoryName.trim()) {
+      setCategories(categories.map(c => c.id === categoryId ? { ...c, name: editCategoryName.trim() } : c))
+      setEditingCategory(null)
+      setEditCategoryName('')
+    }
+  }
+
+  // 修改分类颜色
+  const handleChangeCategoryColor = (categoryId: string, color: string) => {
+    setCategories(categories.map(c => c.id === categoryId ? { ...c, color } : c))
+  }
+
+  // 拖动笔记到分类
+  const handleCategoryDragOver = (e: React.DragEvent, categoryId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setDragOverCategory(categoryId)
+  }
+
+  const handleCategoryDrop = async (e: React.DragEvent, categoryId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (draggedNote) {
+      const updatedNotes = notes.map(n => 
+        n.id === draggedNote ? { ...n, category: categoryId, updatedAt: new Date().toISOString() } : n
+      )
+      setNotes(updatedNotes)
+      const updatedNote = updatedNotes.find(n => n.id === draggedNote)
+      if (updatedNote && window.electronAPI) {
+        await window.electronAPI.saveNote(updatedNote)
+      }
+      if (currentNote?.id === draggedNote) {
+        setCurrentNote(updatedNote || null)
+      }
+    }
+    setDraggedNote(null)
+    setDragOverCategory(null)
+  }
+
   const exportAsMarkdown = () => {
     if (!currentNote) return
     const div = document.createElement('div')
@@ -306,10 +391,7 @@ function App() {
     const blob = new Blob([markdown], { type: 'text/markdown' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url
-    a.download = `${currentNote.title || '笔记'}.md`
-    a.click()
-    URL.revokeObjectURL(url)
+    a.href = url; a.download = `${currentNote.title || '笔记'}.md`; a.click(); URL.revokeObjectURL(url)
   }
 
   const copyContent = async () => {
@@ -317,11 +399,7 @@ function App() {
     const div = document.createElement('div')
     div.innerHTML = currentNote.content
     const text = div.textContent || div.innerText || ''
-    try { 
-      await navigator.clipboard.writeText(text)
-      setCopySuccess(true)
-      setTimeout(() => setCopySuccess(false), 2000) 
-    } catch (err) { console.error('复制失败:', err) }
+    try { await navigator.clipboard.writeText(text); setCopySuccess(true); setTimeout(() => setCopySuccess(false), 2000) } catch (err) { console.error('复制失败:', err) }
   }
 
   const handleDragStart = (e: React.DragEvent, noteId: string) => {
@@ -336,6 +414,7 @@ function App() {
     setDraggedNote(null)
     setDragOverNote(null)
     setDragOverPosition(null)
+    setDragOverCategory(null)
   }
 
   const handleDragOver = (e: React.DragEvent, noteId: string) => {
@@ -416,9 +495,7 @@ function App() {
 
   const getPreview = (c: string) => { 
     if (!c) return '空白笔记'
-    const d = document.createElement('div')
-    d.innerHTML = c
-    const t = d.textContent || ''
+    const d = document.createElement('div'); d.innerHTML = c; const t = d.textContent || ''
     return t.length > 60 ? t.substring(0, 60) + '...' : t 
   }
 
@@ -457,7 +534,29 @@ function App() {
         
         {/* 分类列表 */}
         <div style={styles.categorySection}>
-          <div style={styles.categoryTitle}><Icons.Folder /><span>分类</span></div>
+          <div style={styles.categoryHeader}>
+            <div style={styles.categoryTitle}><Icons.Folder /><span>分类</span></div>
+            <button onClick={() => setShowAddCategory(true)} style={styles.addCategoryBtn} title="添加分类"><Icons.Plus /></button>
+          </div>
+          
+          {showAddCategory && (
+            <div style={styles.addCategoryForm}>
+              <input
+                type="text"
+                placeholder="分类名称"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAddCategory(); if (e.key === 'Escape') setShowAddCategory(false) }}
+                style={styles.categoryInput}
+                autoFocus
+              />
+              <div style={styles.addCategoryActions}>
+                <button onClick={handleAddCategory} style={styles.addBtn}>添加</button>
+                <button onClick={() => { setShowAddCategory(false); setNewCategoryName('') }} style={styles.cancelBtn}>取消</button>
+              </div>
+            </div>
+          )}
+
           <div 
             style={{ ...styles.categoryItem, ...(selectedCategory === 'all' ? styles.categoryItemActive : {}) }}
             onClick={() => setSelectedCategory('all')}
@@ -465,17 +564,62 @@ function App() {
             <span>全部笔记</span>
             <span style={styles.categoryCount}>{getCategoryCount('all')}</span>
           </div>
+          
           {categories.map(cat => (
             <div 
               key={cat.id}
-              style={{ ...styles.categoryItem, ...(selectedCategory === cat.id ? styles.categoryItemActive : {}) }}
+              style={{ 
+                ...styles.categoryItem, 
+                ...(selectedCategory === cat.id ? styles.categoryItemActive : {}),
+                ...(dragOverCategory === cat.id ? styles.categoryItemDragOver : {})
+              }}
               onClick={() => setSelectedCategory(cat.id)}
+              onDragOver={(e) => handleCategoryDragOver(e, cat.id)}
+              onDragLeave={() => setDragOverCategory(null)}
+              onDrop={(e) => handleCategoryDrop(e, cat.id)}
             >
-              <div style={styles.categoryDot}>
-                <div style={{ ...styles.dot, backgroundColor: cat.color }} />
-                <span>{cat.name}</span>
-              </div>
-              <span style={styles.categoryCount}>{getCategoryCount(cat.id)}</span>
+              {editingCategory === cat.id ? (
+                <div style={styles.editCategoryForm}>
+                  <input
+                    type="text"
+                    value={editCategoryName}
+                    onChange={(e) => setEditCategoryName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleRenameCategory(cat.id); if (e.key === 'Escape') setEditingCategory(null) }}
+                    onBlur={() => handleRenameCategory(cat.id)}
+                    style={styles.categoryInput}
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+              ) : (
+                <>
+                  <div style={styles.categoryDot}>
+                    <div style={{ ...styles.dot, backgroundColor: cat.color }} />
+                    <span>{cat.name}</span>
+                  </div>
+                  <div style={styles.categoryActions}>
+                    <span style={styles.categoryCount}>{getCategoryCount(cat.id)}</span>
+                    {cat.id !== 'default' && (
+                      <>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setEditingCategory(cat.id); setEditCategoryName(cat.name) }} 
+                          style={styles.categoryActionBtn}
+                          title="重命名"
+                        >
+                          <Icons.Edit />
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.id) }} 
+                          style={styles.categoryActionBtn}
+                          title="删除分类"
+                        >
+                          <Icons.Trash />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -502,7 +646,7 @@ function App() {
             </div>
           ))}
         </div>
-        <div style={styles.sidebarFooter}><span>{notes.length} 篇笔记</span><span style={styles.dragHint}>Ctrl+N 新建</span></div>
+        <div style={styles.sidebarFooter}><span>{notes.length} 篇笔记</span><span style={styles.dragHint}>拖动笔记到分类</span></div>
       </aside>
 
       {renderResizeHandle('sidebar')}
@@ -592,12 +736,23 @@ const styles: Record<string, React.CSSProperties> = {
   searchBox: { display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', color: '#94a3b8' },
   searchInput: { flex: 1, border: 'none', outline: 'none', fontSize: '13px', color: '#0f172a', backgroundColor: 'transparent' },
   categorySection: { padding: '8px 16px', borderBottom: '1px solid #e2e8f0' },
-  categoryTitle: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 600, color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' as const },
-  categoryItem: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', color: '#475569', marginBottom: '2px' },
+  categoryHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' },
+  categoryTitle: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' as const },
+  addCategoryBtn: { background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: '4px', display: 'flex', alignItems: 'center' },
+  addCategoryForm: { marginBottom: '8px', padding: '8px', backgroundColor: '#fff', borderRadius: '6px', border: '1px solid #e2e8f0' },
+  categoryInput: { width: '100%', padding: '6px 8px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '12px', outline: 'none', boxSizing: 'border-box' as const },
+  addCategoryActions: { display: 'flex', gap: '8px', marginTop: '8px' },
+  addBtn: { padding: '4px 12px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' },
+  cancelBtn: { padding: '4px 12px', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' },
+  categoryItem: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', color: '#475569', marginBottom: '2px', transition: 'all 0.15s' },
   categoryItemActive: { backgroundColor: '#e0e7ff', color: '#3b82f6' },
+  categoryItemDragOver: { backgroundColor: '#dbeafe', border: '1px dashed #3b82f6' },
   categoryDot: { display: 'flex', alignItems: 'center', gap: '8px' },
   dot: { width: '8px', height: '8px', borderRadius: '50%' },
   categoryCount: { fontSize: '11px', color: '#94a3b8', backgroundColor: '#f1f5f9', padding: '2px 6px', borderRadius: '10px' },
+  categoryActions: { display: 'flex', alignItems: 'center', gap: '4px' },
+  categoryActionBtn: { background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '2px', display: 'flex', alignItems: 'center', opacity: 0.6 },
+  editCategoryForm: { flex: 1 },
   newNoteWrapper: { padding: '8px 16px 12px' },
   newNoteBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', padding: '10px 16px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 500, cursor: 'pointer' },
   noteList: { flex: 1, overflowY: 'auto', padding: '0 8px' },
